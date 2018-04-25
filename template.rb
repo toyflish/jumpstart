@@ -26,7 +26,7 @@ def add_template_repository_to_source_path
 end
 
 def add_gems
-  gem 'administrate', '~> 0.8.1'
+  gem 'administrate', '~> 0.10.0'
   gem 'data-confirm-modal', '~> 1.6.2'
   gem 'devise', '~> 4.4.3'
   gem 'devise-bootstrapped', github: 'excid3/devise-bootstrapped', branch: 'bootstrap4'
@@ -36,13 +36,15 @@ def add_gems
   gem 'jquery-rails', '~> 4.3.1'
   gem 'bootstrap', '~> 4.0.0.beta'
   gem 'mini_magick', '~> 4.8'
-  gem 'webpacker', '~> 3.0'
+  gem 'webpacker', '~> 3.4'
   gem 'sidekiq', '~> 5.0'
   gem 'foreman', '~> 0.84.0'
   gem 'omniauth-facebook', '~> 4.0'
   gem 'omniauth-twitter', '~> 1.4'
   gem 'omniauth-github', '~> 1.3'
   gem 'whenever', require: false
+  gem 'friendly_id', '~> 5.1.0'
+  gem 'sitemap_generator', '~> 6.0', '>= 6.0.1'
 end
 
 def set_application_name
@@ -148,6 +150,14 @@ def add_administrate
     /announcement_type: Field::String/,
     "announcement_type: Field::Select.with_options(collection: Announcement::TYPES)"
 
+  gsub_file "app/dashboards/user_dashboard.rb",
+    /email: Field::String/,
+    "email: Field::String,\n\t\tpassword: Field::String"
+
+  gsub_file "app/dashboards/user_dashboard.rb",
+    /FORM_ATTRIBUTES = \[/,
+    "FORM_ATTRIBUTES = [\n\t\t:password,"
+
   gsub_file "app/controllers/admin/application_controller.rb",
     /# TODO Add authentication logic here\./,
     "redirect_to '/', alert: 'Not authorized.' unless user_signed_in? && current_user.admin?"
@@ -182,8 +192,22 @@ def add_whenever
   run "wheneverize ."
 end
 
+def add_friendly_id
+  generate "friendly_id"
+
+  insert_into_file(
+    Dir["db/migrate/**/*friendly_id_slugs.rb"].first,
+    "[5.2]",
+    after: "ActiveRecord::Migration"
+  )
+end
+
 def stop_spring
   run "spring stop"
+end
+
+def add_sitemap
+  rails_command "sitemap:install"
 end
 
 # Main setup
@@ -202,6 +226,7 @@ after_bundle do
   add_announcements
   add_notifications
   add_multiple_authentication
+  add_friendly_id
 
   copy_templates
 
@@ -213,6 +238,8 @@ after_bundle do
   add_administrate
 
   add_whenever
+
+  add_sitemap
 
 
   git :init
